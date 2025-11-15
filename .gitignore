@@ -46,3 +46,4 @@ test-results/
 .obi/
 obi-config.yml
 obi.log
+.claude/
