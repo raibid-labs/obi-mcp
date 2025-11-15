@@ -10,6 +10,10 @@ export interface GetStatusArgs {
   verbose?: boolean;
 }
 
+export interface StopArgs {
+  force?: boolean;
+}
+
 export interface GetLogsArgs {
   lines?: number;
   level?: 'info' | 'warn' | 'error' | 'debug' | 'all';

@@ -69,7 +69,7 @@ export async function handleGetStatus(args: unknown) {
       content: [
         {
           type: 'text',
-          text: formatStatusResponse(response, validatedArgs.verbose),
+          text: formatStatusResponse(response, validatedArgs.verbose ?? false),
         },
       ],
     };

@@ -3,7 +3,7 @@
  * Handles lifecycle management of OBI processes
  */
 
-import { spawn, ChildProcess } from 'child_process';
+import { spawn } from 'child_process';
 import { promises as fs } from 'fs';
 import { join } from 'path';
 import YAML from 'yaml';
@@ -13,6 +13,7 @@ import {
   ObiConfig,
   ObiConfigSchema,
   ObiControlResult,
+  ObiDeploymentMode,
   ObiDeploymentOptions,
   ObiHealthCheck,
   ObiStatus,
@@ -23,11 +24,9 @@ import {
  */
 export class ObiManager {
   private static instance: ObiManager;
-  private process?: ChildProcess;
   private pid?: number;
   private configPath?: string;
   private logPath?: string;
-  private startTime?: Date;
 
   private constructor() {}
 
@@ -109,14 +108,11 @@ export class ObiManager {
 
       obiProcess.on('exit', (code, signal) => {
         logger.info(`OBI process exited with code ${code} and signal ${signal}`);
-        this.process = undefined;
         this.pid = undefined;
       });
 
       // Store process info
-      this.process = obiProcess;
       this.pid = obiProcess.pid;
-      this.startTime = new Date();
 
       // Wait a bit to ensure it started successfully
       await new Promise((resolve) => setTimeout(resolve, 2000));
@@ -149,7 +145,7 @@ export class ObiManager {
   /**
    * Get OBI process status
    */
-  async getStatus(verbose = false): Promise<ObiHealthCheck> {
+  async getStatus(_verbose = false): Promise<ObiHealthCheck> {
     try {
       // First check our tracked PID
       if (this.pid && (await isProcessRunning(this.pid))) {
@@ -225,7 +221,6 @@ export class ObiManager {
       }
 
       // Clear tracked info
-      this.process = undefined;
       this.pid = undefined;
 
       return {
@@ -298,7 +293,7 @@ export class ObiManager {
         const status = await this.getStatus();
         if (status.status === ObiStatus.RUNNING) {
           await this.stop();
-          await this.deployLocal({ mode: 'standalone' as const, configPath: this.configPath });
+          await this.deployLocal({ mode: ObiDeploymentMode.STANDALONE, configPath: this.configPath });
         }
       }
 
