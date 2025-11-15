@@ -7,6 +7,15 @@
     "obi-mcp-server": "dist/index.js"
   },
   "type": "module",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
   "scripts": {
     "build": "tsc",
     "watch": "tsc --watch",
@@ -15,11 +24,16 @@
     "test": "vitest",
     "test:unit": "vitest run tests/unit",
     "test:integration": "vitest run tests/integration",
+    "test:e2e": "vitest run tests/e2e",
+    "test:e2e:watch": "vitest tests/e2e",
+    "test:all": "vitest run",
     "lint": "eslint src --ext .ts",
     "lint:fix": "eslint src --ext .ts --fix",
     "format": "prettier --write \"src/**/*.ts\"",
     "typecheck": "tsc --noEmit",
-    "prepare": "npm run build"
+    "prepare": "husky",
+    "semantic-release": "semantic-release",
+    "semantic-release:dry": "semantic-release --dry-run"
   },
   "keywords": [
     "mcp",
@@ -37,23 +51,36 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/yourusername/obi-mcp-server.git"
+    "url": "https://github.com/raibid-labs/obi-mcp.git"
   },
+  "bugs": {
+    "url": "https://github.com/raibid-labs/obi-mcp/issues"
+  },
+  "homepage": "https://github.com/raibid-labs/obi-mcp#readme",
   "engines": {
     "node": ">=18.0.0"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.4",
+    "winston": "^3.17.0",
     "yaml": "^2.6.1",
-    "zod": "^3.23.8",
-    "winston": "^3.17.0"
+    "zod": "^3.23.8"
   },
   "devDependencies": {
+    "@commitlint/cli": "^20.1.0",
+    "@commitlint/config-conventional": "^20.0.0",
+    "@semantic-release/changelog": "^6.0.3",
+    "@semantic-release/git": "^10.0.1",
+    "@semantic-release/github": "^12.0.2",
+    "@semantic-release/npm": "^13.1.2",
     "@types/node": "^22.10.2",
     "@typescript-eslint/eslint-plugin": "^8.18.2",
     "@typescript-eslint/parser": "^8.18.2",
+    "@vitest/coverage-v8": "^2.1.8",
     "eslint": "^9.17.0",
+    "husky": "^9.1.7",
     "prettier": "^3.4.2",
+    "semantic-release": "^25.0.2",
     "tsx": "^4.19.2",
     "typescript": "^5.7.2",
     "vitest": "^2.1.8"

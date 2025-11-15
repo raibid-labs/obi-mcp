@@ -1,0 +1,17 @@
+# Run linter
+echo "Running ESLint..."
+npm run lint || {
+  echo "Warning: ESLint found issues. Please review and fix if necessary."
+  echo "Continuing with commit..."
+  # Uncomment the line below to enforce strict linting before commits
+  # exit 1
+}
+
+# Run type checking
+echo "Running TypeScript type checking..."
+npm run typecheck || {
+  echo "Type checking failed. Please fix type errors before committing."
+  exit 1
+}
+
+echo "Pre-commit checks passed!"
