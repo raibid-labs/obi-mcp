@@ -1,35 +1,67 @@
-# Source files
+# Source files (TypeScript sources not needed in published package)
 src/
 tests/
-docs/
 examples/
 
-# Config files
+# Documentation (except README and CHANGELOG)
+docs/
+*.md
+!README.md
+!CHANGELOG.md
+
+# Configuration files
 tsconfig.json
 .eslintrc.json
 .prettierrc
 vitest.config.ts
+.editorconfig
 
 # Git
 .git/
 .gitignore
+.gitattributes
 
 # IDE
 .vscode/
 .idea/
+*.swp
+*.swo
+*~
 
 # Logs
 *.log
 logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
-# Tests
+# Testing
 coverage/
 .nyc_output/
+test-results/
 
-# CI
+# CI/CD
 .github/
+.gitlab-ci.yml
+.travis.yml
+.circleci/
+
+# Build artifacts (temporary)
+*.tsbuildinfo
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Dependencies
+node_modules/
+
+# OS files
+.DS_Store
+Thumbs.db
 
 # Misc
-*.md
-!README.md
-!LICENSE
+scripts/
+.npmrc
+.yarnrc
