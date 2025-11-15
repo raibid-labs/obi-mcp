@@ -2,44 +2,150 @@ name: Release
 
 on:
   push:
-    tags:
-      - 'v*'
+    branches:
+      - main
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+  packages: write
 
 jobs:
-  build:
-    name: Build and Release
+  validate:
+    name: Validate Release
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20.x'
-          registry-url: 'https://registry.npmjs.org'
+          cache: 'npm'
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Run tests
-        run: npm test
+      - name: Run linter
+        run: npm run lint
 
-      - name: Build
+      - name: Run type checking
+        run: npm run typecheck
+
+      - name: Run tests
+        run: npm run test:all
+
+      - name: Build project
         run: npm run build
 
-      - name: Publish to npm
-        run: npm publish
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-output
+          path: dist/
+          retention-days: 1
 
-      - name: Create GitHub Release
-        uses: actions/create-release@v1
+  release:
+    name: Semantic Release
+    runs-on: ubuntu-latest
+    needs: validate
+    timeout-minutes: 15
+    outputs:
+      new_release_published: ${{ steps.semantic.outputs.new_release_published }}
+      new_release_version: ${{ steps.semantic.outputs.new_release_version }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: build-output
+          path: dist/
+
+      - name: Verify npm credentials
+        run: |
+          if [ -z "${{ secrets.NPM_TOKEN }}" ]; then
+            echo "Warning: NPM_TOKEN is not set. npm publish will be skipped."
+          else
+            echo "NPM_TOKEN is configured"
+          fi
+
+      - name: Run semantic-release
+        id: semantic
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          GIT_AUTHOR_NAME: github-actions[bot]
+          GIT_AUTHOR_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
+          GIT_COMMITTER_NAME: github-actions[bot]
+          GIT_COMMITTER_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
+        run: npx semantic-release
+
+      - name: Release Summary
+        if: steps.semantic.outputs.new_release_published == 'true'
+        run: |
+          echo "## Release Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- Version: v${{ steps.semantic.outputs.new_release_version }}" >> $GITHUB_STEP_SUMMARY
+          echo "- GitHub Release: Created" >> $GITHUB_STEP_SUMMARY
+          echo "- npm Publish: ${{ secrets.NPM_TOKEN != '' && 'Published' || 'Skipped (no NPM_TOKEN)' }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "View the release at: https://github.com/${{ github.repository }}/releases/tag/v${{ steps.semantic.outputs.new_release_version }}" >> $GITHUB_STEP_SUMMARY
+
+      - name: No Release Summary
+        if: steps.semantic.outputs.new_release_published != 'true'
+        run: |
+          echo "## No Release Created" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "No releasable changes detected in this push." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Commits must include conventional commit types (feat, fix, etc.) to trigger a release." >> $GITHUB_STEP_SUMMARY
+
+  notify:
+    name: Notify Release
+    runs-on: ubuntu-latest
+    needs: release
+    if: needs.release.outputs.new_release_published == 'true'
+
+    steps:
+      - name: Create release notification
+        uses: actions/github-script@v7
         with:
-          tag_name: ${{ github.ref }}
-          release_name: Release ${{ github.ref }}
-          draft: false
-          prerelease: false
+          script: |
+            const version = '${{ needs.release.outputs.new_release_version }}';
+            const repo = context.repo;
+
+            console.log(`New release published: v${version}`);
+            console.log(`Repository: ${repo.owner}/${repo.repo}`);
+            console.log(`Release URL: https://github.com/${repo.owner}/${repo.repo}/releases/tag/v${version}`);
+
+            // You can add additional notifications here (Slack, Discord, etc.)
+            // Example: Post to Slack webhook if configured
+            // if (process.env.SLACK_WEBHOOK_URL) {
+            //   await fetch(process.env.SLACK_WEBHOOK_URL, {
+            //     method: 'POST',
+            //     body: JSON.stringify({
+            //       text: `New release published: v${version}`
+            //     })
+            //   });
+            // }
