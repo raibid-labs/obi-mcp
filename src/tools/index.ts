@@ -1,12 +1,20 @@
 /**
  * Export all MCP tools
+ * Re-exports from local toolset for backward compatibility
+ * @deprecated Import from '../toolsets/local/tools/index.js' instead
  */
 
-export { getStatusTool, handleGetStatus } from './status.js';
-export { getConfigTool, handleGetConfig } from './get-config.js';
-export { getLogsTool, handleGetLogs } from './get-logs.js';
-export { getDeployLocalTool, handleDeployLocal } from './deploy-local.js';
-export { updateConfigTool, handleUpdateConfig } from './update-config.js';
-export { stopTool, handleStop } from './stop.js';
-
-// Additional tools will be exported here as they are implemented
+export {
+  getStatusTool,
+  handleGetStatus,
+  getConfigTool,
+  handleGetConfig,
+  getLogsTool,
+  handleGetLogs,
+  getDeployLocalTool,
+  handleDeployLocal,
+  updateConfigTool,
+  handleUpdateConfig,
+  stopTool,
+  handleStop,
+} from '../toolsets/local/tools/index.js';
