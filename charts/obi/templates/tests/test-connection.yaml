@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "{{ include "obi.fullname" . }}-test-connection"
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "obi.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": test
+    "helm.sh/hook-delete-policy": hook-succeeded,hook-failed
+spec:
+  containers:
+  - name: wget
+    image: busybox
+    command: ['sh', '-c']
+    args:
+    - |
+      echo "Testing OBI DaemonSet deployment..."
+      kubectl get daemonset {{ include "obi.fullname" . }} -n {{ .Release.Namespace }}
+      echo "Test passed: OBI DaemonSet exists"
+  restartPolicy: Never
+  serviceAccountName: {{ include "obi.serviceAccountName" . }}

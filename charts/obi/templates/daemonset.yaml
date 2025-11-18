@@ -1,0 +1,112 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: {{ include "obi.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "obi.labels" . | nindent 4 }}
+    {{- with .Values.daemonset.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  {{- with .Values.daemonset.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "obi.selectorLabels" . | nindent 6 }}
+  updateStrategy:
+    {{- toYaml .Values.daemonset.updateStrategy | nindent 4 }}
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        {{- with .Values.daemonset.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        {{- include "obi.selectorLabels" . | nindent 8 }}
+        {{- with .Values.daemonset.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      serviceAccountName: {{ include "obi.serviceAccountName" . }}
+      hostPID: {{ .Values.hostPID }}
+      hostNetwork: {{ .Values.hostNetwork }}
+      dnsPolicy: {{ .Values.dnsPolicy }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.priorityClassName }}
+      priorityClassName: {{ . }}
+      {{- end }}
+      containers:
+      - name: obi
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        securityContext:
+          {{- toYaml .Values.securityContext | nindent 10 }}
+        env:
+        - name: OTEL_EXPORTER_OTLP_ENDPOINT
+          value: {{ .Values.obi.otlpEndpoint | quote }}
+        - name: OTEL_EBPF_OPEN_PORT
+          value: {{ .Values.obi.openPort | quote }}
+        - name: OTEL_EBPF_NETWORK_ENABLED
+          value: {{ .Values.obi.networkEnabled | quote }}
+        {{- if .Values.obi.serviceName }}
+        - name: OTEL_SERVICE_NAME
+          value: {{ .Values.obi.serviceName | quote }}
+        {{- end }}
+        - name: NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        {{- with .Values.obi.extraEnv }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        resources:
+          {{- toYaml .Values.resources | nindent 10 }}
+        volumeMounts:
+        - name: config
+          mountPath: /etc/obi
+          readOnly: true
+        - name: sys
+          mountPath: /sys
+          readOnly: true
+        - name: proc
+          mountPath: /proc
+          readOnly: true
+      volumes:
+      - name: config
+        configMap:
+          name: {{ include "obi.fullname" . }}
+      - name: sys
+        hostPath:
+          path: /sys
+          type: Directory
+      - name: proc
+        hostPath:
+          path: /proc
+          type: Directory
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

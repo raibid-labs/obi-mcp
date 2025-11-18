@@ -1,0 +1,31 @@
+Thank you for installing {{ .Chart.Name }}!
+
+Your release is named {{ .Release.Name }}.
+
+OBI (OpenTelemetry eBPF Instrumentation) has been deployed as a DaemonSet in namespace: {{ .Release.Namespace }}
+
+To verify the deployment:
+
+  kubectl get daemonset -n {{ .Release.Namespace }} {{ include "obi.fullname" . }}
+  kubectl get pods -n {{ .Release.Namespace }} -l app.kubernetes.io/name={{ include "obi.name" . }}
+
+To view OBI logs:
+
+  kubectl logs -n {{ .Release.Namespace }} -l app.kubernetes.io/name={{ include "obi.name" . }} --tail=100 -f
+
+Configuration:
+  - OTLP Endpoint: {{ .Values.obi.otlpEndpoint }}
+  - Instrumented Port: {{ .Values.obi.openPort }}
+  - Network Instrumentation: {{ .Values.obi.networkEnabled }}
+
+For more information, visit:
+  - Project: {{ .Chart.Home }}
+  - Documentation: https://github.com/raibid-labs/obi-mcp/tree/main/docs
+
+To upgrade this release:
+
+  helm upgrade {{ .Release.Name }} {{ .Chart.Name }} -n {{ .Release.Namespace }}
+
+To uninstall this release:
+
+  helm uninstall {{ .Release.Name }} -n {{ .Release.Namespace }}

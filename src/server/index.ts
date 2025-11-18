@@ -34,6 +34,7 @@ import {
 import { listResources, handleResourceRead } from '../resources/index.js';
 import { prompts, getPromptTemplate } from '../prompts/index.js';
 import { dockerToolset } from '../toolsets/docker/index.js';
+import { kubernetesToolset } from '../toolsets/kubernetes/index.js';
 
 /**
  * OBI MCP Server class
@@ -104,7 +105,19 @@ export class ObiMcpServer {
       }
     });
 
-    logger.info(`Registered ${this.tools.size} tools (${dockerTools.length} from Docker toolset)`);
+    // Register Kubernetes toolset tools
+    const k8sTools = kubernetesToolset.getTools();
+    k8sTools.forEach((tool) => {
+      this.tools.set(tool.name, tool);
+      const handler = kubernetesToolset.getToolHandler(tool.name);
+      if (handler) {
+        this.toolHandlers.set(tool.name, handler);
+      }
+    });
+
+    logger.info(
+      `Registered ${this.tools.size} tools (${dockerTools.length} Docker, ${k8sTools.length} Kubernetes)`
+    );
   }
 
   /**
@@ -117,11 +130,14 @@ export class ObiMcpServer {
     // Get Docker toolset resources
     const dockerResources = dockerToolset.getResources();
 
+    // Get Kubernetes toolset resources
+    const k8sResources = kubernetesToolset.getResources();
+
     // Combine all resources
-    this.resources = [...coreResources, ...dockerResources];
+    this.resources = [...coreResources, ...dockerResources, ...k8sResources];
 
     logger.info(
-      `Registered ${this.resources.length} resources (${dockerResources.length} from Docker toolset)`
+      `Registered ${this.resources.length} resources (${dockerResources.length} Docker, ${k8sResources.length} Kubernetes)`
     );
   }
 
@@ -135,11 +151,14 @@ export class ObiMcpServer {
     // Get Docker toolset prompts
     const dockerPrompts = dockerToolset.getPrompts();
 
+    // Get Kubernetes toolset prompts
+    const k8sPrompts = kubernetesToolset.getPrompts();
+
     // Combine all prompts
-    this.prompts = [...corePrompts, ...dockerPrompts];
+    this.prompts = [...corePrompts, ...dockerPrompts, ...k8sPrompts];
 
     logger.info(
-      `Registered ${this.prompts.length} prompts (${dockerPrompts.length} from Docker toolset)`
+      `Registered ${this.prompts.length} prompts (${dockerPrompts.length} Docker, ${k8sPrompts.length} Kubernetes)`
     );
   }
 
@@ -196,6 +215,11 @@ export class ObiMcpServer {
           return await dockerToolset.handleResourceRead(uri);
         }
 
+        // Check if resource belongs to Kubernetes toolset
+        if (kubernetesToolset.hasResource(uri)) {
+          return await kubernetesToolset.handleResourceRead(uri);
+        }
+
         // Otherwise, use core resource handler
         const result = await handleResourceRead(uri);
         return result;
@@ -224,6 +248,8 @@ export class ObiMcpServer {
         let template: string;
         if (dockerToolset.hasPrompt(name)) {
           template = dockerToolset.getPromptTemplate(name, args);
+        } else if (kubernetesToolset.hasPrompt(name)) {
+          template = kubernetesToolset.getPromptTemplate(name, args);
         } else {
           template = getPromptTemplate(name, args);
         }
@@ -310,6 +336,9 @@ export class ObiMcpServer {
     if (dockerToolset.hasResource(uri)) {
       return await dockerToolset.handleResourceRead(uri);
     }
+    if (kubernetesToolset.hasResource(uri)) {
+      return await kubernetesToolset.handleResourceRead(uri);
+    }
     return await handleResourceRead(uri);
   }
 
@@ -331,6 +360,8 @@ export class ObiMcpServer {
     let template: string;
     if (dockerToolset.hasPrompt(name)) {
       template = dockerToolset.getPromptTemplate(name, args);
+    } else if (kubernetesToolset.hasPrompt(name)) {
+      template = kubernetesToolset.getPromptTemplate(name, args);
     } else {
       template = getPromptTemplate(name, args);
     }
