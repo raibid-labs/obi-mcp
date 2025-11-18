@@ -14,6 +14,7 @@ import {
   GetPromptRequestSchema,
   Tool,
   Prompt,
+  Resource,
 } from '@modelcontextprotocol/sdk/types.js';
 import logger from '../utils/logger.js';
 import {
@@ -32,6 +33,7 @@ import {
 } from '../tools/index.js';
 import { listResources, handleResourceRead } from '../resources/index.js';
 import { prompts, getPromptTemplate } from '../prompts/index.js';
+import { dockerToolset } from '../toolsets/docker/index.js';
 
 /**
  * OBI MCP Server class
@@ -40,6 +42,7 @@ export class ObiMcpServer {
   private server: Server;
   private tools: Map<string, Tool>;
   private toolHandlers: Map<string, (args: unknown) => Promise<any>>;
+  private resources: Resource[];
   private prompts: Prompt[];
 
   constructor() {
@@ -59,9 +62,12 @@ export class ObiMcpServer {
 
     this.tools = new Map();
     this.toolHandlers = new Map();
-    this.prompts = prompts;
+    this.resources = [];
+    this.prompts = [];
 
     this.setupTools();
+    this.setupResources();
+    this.setupPrompts();
     this.setupHandlers();
   }
 
@@ -69,7 +75,7 @@ export class ObiMcpServer {
    * Register all available tools
    */
   private setupTools(): void {
-    // Register all OBI tools
+    // Register core OBI tools
     this.tools.set(getStatusTool.name, getStatusTool);
     this.toolHandlers.set(getStatusTool.name, handleGetStatus);
 
@@ -88,7 +94,53 @@ export class ObiMcpServer {
     this.tools.set(stopTool.name, stopTool);
     this.toolHandlers.set(stopTool.name, handleStop);
 
-    logger.info(`Registered ${this.tools.size} tools`);
+    // Register Docker toolset tools
+    const dockerTools = dockerToolset.getTools();
+    dockerTools.forEach((tool) => {
+      this.tools.set(tool.name, tool);
+      const handler = dockerToolset.getToolHandler(tool.name);
+      if (handler) {
+        this.toolHandlers.set(tool.name, handler);
+      }
+    });
+
+    logger.info(`Registered ${this.tools.size} tools (${dockerTools.length} from Docker toolset)`);
+  }
+
+  /**
+   * Register all available resources
+   */
+  private setupResources(): void {
+    // Get core resources
+    const coreResources = listResources().resources;
+
+    // Get Docker toolset resources
+    const dockerResources = dockerToolset.getResources();
+
+    // Combine all resources
+    this.resources = [...coreResources, ...dockerResources];
+
+    logger.info(
+      `Registered ${this.resources.length} resources (${dockerResources.length} from Docker toolset)`
+    );
+  }
+
+  /**
+   * Register all available prompts
+   */
+  private setupPrompts(): void {
+    // Get core prompts
+    const corePrompts = prompts;
+
+    // Get Docker toolset prompts
+    const dockerPrompts = dockerToolset.getPrompts();
+
+    // Combine all prompts
+    this.prompts = [...corePrompts, ...dockerPrompts];
+
+    logger.info(
+      `Registered ${this.prompts.length} prompts (${dockerPrompts.length} from Docker toolset)`
+    );
   }
 
   /**
@@ -127,7 +179,9 @@ export class ObiMcpServer {
     // Handle resource listing
     this.server.setRequestHandler(ListResourcesRequestSchema, async () => {
       logger.debug('Handling ListResources request');
-      return listResources();
+      return {
+        resources: this.resources,
+      };
     });
 
     // Handle resource reading
@@ -137,6 +191,12 @@ export class ObiMcpServer {
       logger.info(`Handling ReadResource request: ${uri}`);
 
       try {
+        // Check if resource belongs to Docker toolset
+        if (dockerToolset.hasResource(uri)) {
+          return await dockerToolset.handleResourceRead(uri);
+        }
+
+        // Otherwise, use core resource handler
         const result = await handleResourceRead(uri);
         return result;
       } catch (error) {
@@ -160,7 +220,14 @@ export class ObiMcpServer {
       logger.info(`Handling GetPrompt request: ${name}`);
 
       try {
-        const template = getPromptTemplate(name, args);
+        // Check if prompt belongs to Docker toolset
+        let template: string;
+        if (dockerToolset.hasPrompt(name)) {
+          template = dockerToolset.getPromptTemplate(name, args);
+        } else {
+          template = getPromptTemplate(name, args);
+        }
+
         return {
           messages: [
             {
@@ -229,8 +296,10 @@ export class ObiMcpServer {
    * Test helper: List available resources
    * @internal For testing only
    */
-  async _testListResources(): Promise<{ resources: any[] }> {
-    return listResources();
+  async _testListResources(): Promise<{ resources: Resource[] }> {
+    return {
+      resources: this.resources,
+    };
   }
 
   /**
@@ -238,6 +307,9 @@ export class ObiMcpServer {
    * @internal For testing only
    */
   async _testReadResource(uri: string): Promise<any> {
+    if (dockerToolset.hasResource(uri)) {
+      return await dockerToolset.handleResourceRead(uri);
+    }
     return await handleResourceRead(uri);
   }
 
@@ -256,7 +328,13 @@ export class ObiMcpServer {
    * @internal For testing only
    */
   async _testGetPrompt(name: string, args?: unknown): Promise<any> {
-    const template = getPromptTemplate(name, args);
+    let template: string;
+    if (dockerToolset.hasPrompt(name)) {
+      template = dockerToolset.getPromptTemplate(name, args);
+    } else {
+      template = getPromptTemplate(name, args);
+    }
+
     return {
       messages: [
         {
