@@ -20,6 +20,7 @@ import {
 import { logger, getServerConfig } from '../core/index.js';
 import type { Toolset, ToolHandler, ResourceReadHandler } from '../toolsets/base/index.js';
 import { localToolset } from '../toolsets/local/index.js';
+import { dockerToolset } from '../toolsets/docker/index.js';
 
 /**
  * Tool response type
@@ -82,13 +83,13 @@ export class ObiMcpServer {
       this.registerToolset(localToolset);
     }
 
+    // Register Docker toolset if enabled
+    if (config.toolsets?.docker?.enabled !== false) {
+      this.registerToolset(dockerToolset);
+    }
+
     // Future toolsets will be registered here
-    // if (config.toolsets?.kubernetes?.enabled) {
-    //   this.registerToolset(kubernetesToolset);
-    // }
-    // if (config.toolsets?.docker?.enabled) {
-    //   this.registerToolset(dockerToolset);
-    // }
+    // kubernetes toolset will be added in PR #29
 
     logger.info(`Registered ${this.toolsets.size} toolset(s)`);
   }

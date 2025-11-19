@@ -19,9 +19,8 @@ export interface ToolsetConfig {
 export interface ServerConfig {
   toolsets?: {
     local?: ToolsetConfig;
-    // Future toolsets will be added here
-    // kubernetes?: ToolsetConfig;
-    // docker?: ToolsetConfig;
+    kubernetes?: ToolsetConfig;
+    docker?: ToolsetConfig;
   };
 }
 
