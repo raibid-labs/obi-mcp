@@ -5,12 +5,12 @@
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { listResources, handleResourceRead } from '../../src/resources/index.js';
-import obiManager from '../../src/utils/obi-manager.js';
+import obiManager from '../../src/toolsets/local/obi-manager.js';
 import { OBI_RESOURCE_URIS } from '../../src/types/mcp.js';
 import { ObiStatus } from '../../src/types/obi.js';
 
 // Mock ObiManager
-vi.mock('../../src/utils/obi-manager.js', () => {
+vi.mock('../../src/toolsets/local/obi-manager.js', () => {
   const mockManager = {
     getStatus: vi.fn(),
     getConfig: vi.fn(),

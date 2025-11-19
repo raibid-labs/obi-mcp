@@ -6,11 +6,11 @@
 import { describe, it, expect, beforeAll, afterAll, vi, beforeEach } from 'vitest';
 import { ObiMcpServer } from '../../src/server/index.js';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
-import obiManager from '../../src/utils/obi-manager.js';
+import obiManager from '../../src/toolsets/local/obi-manager.js';
 import { ObiStatus } from '../../src/types/obi.js';
 
 // Mock the ObiManager to avoid requiring actual OBI binary
-vi.mock('../../src/utils/obi-manager.js', () => {
+vi.mock('../../src/toolsets/local/obi-manager.js', () => {
   const mockManager = {
     getStatus: vi.fn(),
     deployLocal: vi.fn(),
