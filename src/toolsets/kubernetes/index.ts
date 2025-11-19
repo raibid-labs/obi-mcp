@@ -1,4 +1,5 @@
-import { Tool, Prompt } from '@modelcontextprotocol/sdk/types.js';
+import { Tool, Prompt, Resource } from '@modelcontextprotocol/sdk/types.js';
+import type { Toolset } from '../base/index.js';
 import logger from '../../utils/logger.js';
 
 import {
@@ -23,7 +24,10 @@ import {
   getSetupKubernetesTemplate,
 } from './prompts/setup-kubernetes.js';
 
-export class KubernetesToolset {
+export class KubernetesToolset implements Toolset {
+  readonly name = 'kubernetes';
+  readonly description = 'Kubernetes deployment and management for OBI';
+
   private tools: Map<string, Tool>;
   private toolHandlers: Map<string, (args: unknown) => Promise<any>>;
   private prompts: Prompt[];
@@ -74,26 +78,32 @@ export class KubernetesToolset {
     return this.toolHandlers.get(name);
   }
 
+  getResources(): Resource[] {
+    return listK8sResources();
+  }
+
+  getResourceReadHandler() {
+    return async (uri: string) => {
+      return await readK8sResource(uri);
+    };
+  }
+
   getPrompts(): Prompt[] {
     return this.prompts;
   }
 
-  getPromptTemplate(name: string, args?: unknown): string {
+  getPromptTemplateGenerator(name: string) {
     if (name === setupKubernetesPrompt.name) {
-      return getSetupKubernetesTemplate(args as Record<string, unknown>);
+      return (args?: unknown) => getSetupKubernetesTemplate(args as Record<string, unknown>);
     }
-
-    throw new Error(`Unknown prompt: ${name}`);
-  }
-
-  listResources() {
-    return listK8sResources();
-  }
-
-  async readResource(uri: string, namespace?: string) {
-    return await readK8sResource(uri, namespace);
+    return undefined;
   }
 }
+
+/**
+ * Export singleton instance
+ */
+export const kubernetesToolset = new KubernetesToolset();
 
 export function createKubernetesToolset(): KubernetesToolset {
   return new KubernetesToolset();

@@ -37,13 +37,13 @@ export async function handleK8sStatus(args: unknown) {
 
     const connectivity = await kubectl.checkConnectivity();
     if (!connectivity.connected) {
-      throw new Error(`Cannot connect to cluster: \${connectivity.error}`);
+      throw new Error(`Cannot connect to cluster: ${connectivity.error}`);
     }
 
     const namespaceExists = await kubectl.namespaceExists(validatedArgs.namespace);
     if (!namespaceExists) {
       return {
-        content: [{ type: 'text', text: `OBI not deployed in namespace \${validatedArgs.namespace}` }],
+        content: [{ type: 'text', text: `OBI not deployed in namespace ${validatedArgs.namespace}` }],
       };
     }
 
@@ -52,19 +52,19 @@ export async function handleK8sStatus(args: unknown) {
 
     if (pods.length === 0) {
       return {
-        content: [{ type: 'text', text: `OBI not deployed in namespace \${validatedArgs.namespace}` }],
+        content: [{ type: 'text', text: `OBI not deployed in namespace ${validatedArgs.namespace}` }],
       };
     }
 
     const runningPods = pods.filter(p => p.status === 'Running').length;
-    const health = runningPods === nodes.length ? 'HEALTHY' : 'DEGRADED';
+    const _health = runningPods === nodes.length ? 'HEALTHY' : 'DEGRADED';
 
-    let text = `=== OBI Kubernetes Status ===\n\nStatus: \${health}\nPods: \${pods.length}/\${nodes.length}\nRunning: \${runningPods}\n`;
+    let text = `=== OBI Kubernetes Status ===\n\nStatus: ${_health}\nPods: ${pods.length}/${nodes.length}\nRunning: ${runningPods}\n`;
 
     if (validatedArgs.verbose) {
       text += `\n--- Pod Details ---\n`;
-      pods.forEach(pod => {
-        text += `\${pod.name}: \${pod.status} (\${pod.ready}) on \${pod.node}\n`;
+      pods.forEach(_pod => {
+        text += `${_pod.name}: ${_pod.status} (${_pod.ready}) on ${_pod.node}\n`;
       });
     }
 
@@ -74,7 +74,7 @@ export async function handleK8sStatus(args: unknown) {
   } catch (error) {
     logger.error('Status error', { error });
     return {
-      content: [{ type: 'text', text: `Error: \${error instanceof Error ? error.message : String(error)}` }],
+      content: [{ type: 'text', text: `Error: ${error instanceof Error ? error.message : String(error)}` }],
       isError: true,
     };
   }

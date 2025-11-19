@@ -97,7 +97,7 @@ export class ManifestGenerator {
   }
 
   generateDaemonSet(config: ObiK8sConfig): string {
-    const imageWithTag = config.imageTag ? `\${config.image}:\${config.imageTag}` : config.image;
+    const imageWithTag = config.imageTag ? `${config.image}:${config.imageTag}` : config.image;
     const env: Array<any> = [
       { name: 'OBI_NETWORK_METRICS', value: 'true' },
       { name: 'NODE_NAME', valueFrom: { fieldRef: { fieldPath: 'spec.nodeName' } } },
@@ -150,12 +150,12 @@ export class ManifestGenerator {
     });
   }
 
-  generateImageUpdate(namespace: string, image: string, imageTag: string): string {
+  generateImageUpdate(namespace: string, _image: string, _imageTag: string): string {
     return YAML.stringify({
       apiVersion: 'apps/v1',
       kind: 'DaemonSet',
       metadata: { name: 'obi', namespace },
-      spec: { template: { spec: { containers: [{ name: 'obi', image: `\${image}:\${imageTag}` }] } } },
+      spec: { template: { spec: { containers: [{ name: 'obi', image: `${_image}:${_imageTag}` }] } } },
     });
   }
 

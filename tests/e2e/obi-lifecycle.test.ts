@@ -4,7 +4,7 @@
  * Can run with real OBI binary or in mock mode
  */
 
-import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from 'vitest';
 import { ObiMcpServer } from '../../src/server/index.js';
 import { promises as fs } from 'fs';
 import { join } from 'path';
@@ -19,6 +19,17 @@ import {
 } from './test-helpers.js';
 
 const execAsync = promisify(exec);
+
+// Mock the process utilities to avoid false positives from pgrep matching test processes
+// The issue is that pgrep -f "obi" matches any process with "obi" in the command line,
+// including the test runner itself, causing the singleton to cache stale PIDs
+vi.mock('../../src/core/utils/process.js', async () => {
+  const actual = await vi.importActual<typeof import('../../src/core/utils/process.js')>('../../src/core/utils/process.js');
+  return {
+    ...actual,
+    findProcessByName: vi.fn().mockResolvedValue([]), // Always return empty - no OBI processes
+  };
+});
 
 /**
  * Check if OBI binary is available
@@ -45,7 +56,8 @@ async function checkObiAvailable(): Promise<boolean> {
 
 const OBI_AVAILABLE = await checkObiAvailable();
 
-describe('OBI Lifecycle E2E', () => {
+// Run tests sequentially to avoid singleton state pollution between parallel tests
+describe.sequential('OBI Lifecycle E2E', () => {
   let server: ObiMcpServer;
   const testConfigPath = join(process.cwd(), '.obi', 'test-config.yml');
 
@@ -62,8 +74,23 @@ describe('OBI Lifecycle E2E', () => {
     await new Promise(resolve => setTimeout(resolve, 1000));
   });
 
-  beforeEach(() => {
+  beforeEach(async () => {
     server = new ObiMcpServer();
+    // Ensure OBI is stopped before each test to avoid state pollution from parallel tests
+    // First try graceful stop through the tool
+    try {
+      await callTool(server, 'obi_stop');
+    } catch {
+      // Ignore errors if already stopped
+    }
+    // Also force-kill any actual OBI processes (not just cached PIDs)
+    try {
+      await execAsync('pkill -9 -x obi');
+    } catch {
+      // Ignore if no processes found
+    }
+    // Wait for processes to fully terminate and state to settle
+    await new Promise(resolve => setTimeout(resolve, 1000));
   });
 
   afterAll(async () => {

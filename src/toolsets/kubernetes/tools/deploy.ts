@@ -56,7 +56,7 @@ export async function handleK8sDeploy(args: unknown) {
 
     const connectivity = await kubectl.checkConnectivity();
     if (!connectivity.connected) {
-      throw new Error(`Cannot connect to Kubernetes: \${connectivity.error}`);
+      throw new Error(`Cannot connect to Kubernetes: ${connectivity.error}`);
     }
 
     const obiConfig: ObiK8sConfig = {
@@ -76,7 +76,7 @@ export async function handleK8sDeploy(args: unknown) {
     const generator = createManifestGenerator();
     const validation = generator.validateConfig(obiConfig);
     if (!validation.valid) {
-      throw new Error(`Invalid config: \${validation.errors.join(', ')}`);
+      throw new Error(`Invalid config: ${validation.errors.join(', ')}`);
     }
 
     const manifests = generator.generateAll(obiConfig);
@@ -85,7 +85,7 @@ export async function handleK8sDeploy(args: unknown) {
       return {
         content: [{
           type: 'text',
-          text: `=== OBI Kubernetes Deployment (Dry Run) ===\n\nNamespace: \${obiConfig.namespace}\nImage: \${obiConfig.image}:\${obiConfig.imageTag}\n\n---Manifests---\n\${manifests}`,
+          text: `=== OBI Kubernetes Deployment (Dry Run) ===\n\nNamespace: ${obiConfig.namespace}\nImage: ${obiConfig.image}:${obiConfig.imageTag}\n\n---Manifests---\n${manifests}`,
         }],
       };
     }
@@ -98,19 +98,19 @@ export async function handleK8sDeploy(args: unknown) {
     await kubectl.apply(manifests, { namespace: validatedArgs.namespace });
     await new Promise(resolve => setTimeout(resolve, 2000));
 
-    const pods = await kubectl.getPods('app=obi', { namespace: validatedArgs.namespace });
-    const nodes = await kubectl.getNodes();
+    const _pods = await kubectl.getPods('app=obi', { namespace: validatedArgs.namespace });
+    const _nodes = await kubectl.getNodes();
 
     return {
       content: [{
         type: 'text',
-        text: `=== OBI Deployed Successfully ===\n\nNamespace: \${obiConfig.namespace}\nImage: \${obiConfig.image}:\${obiConfig.imageTag}\nPods: \${pods.length}/\${nodes.length}\n\nStatus: \${pods.filter(p => p.status === 'Running').length} running\n\nNext: Use obi_k8s_status() to check health`,
+        text: `=== OBI Deployed Successfully ===\n\nNamespace: ${obiConfig.namespace}\nImage: ${obiConfig.image}:${obiConfig.imageTag}\nPods: ${_pods.length}/${_nodes.length}\n\nStatus: ${_pods.filter(p => p.status === 'Running').length} running\n\nNext: Use obi_k8s_status() to check health`,
       }],
     };
   } catch (error) {
     logger.error('Deploy error', { error });
     return {
-      content: [{ type: 'text', text: `Error: \${error instanceof Error ? error.message : String(error)}` }],
+      content: [{ type: 'text', text: `Error: ${error instanceof Error ? error.message : String(error)}` }],
       isError: true,
     };
   }

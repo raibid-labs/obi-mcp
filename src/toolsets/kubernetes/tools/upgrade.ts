@@ -51,11 +51,11 @@ export async function handleK8sUpgrade(args: unknown) {
 
     const newImageName = validatedArgs.image || currentImageName;
     const newTag = validatedArgs.imageTag || currentTag || 'latest';
-    const newImage = `\${newImageName}:\${newTag}`;
+    const newImage = `${newImageName}:${newTag}`;
 
     if (newImage === currentImage) {
       return {
-        content: [{ type: 'text', text: `No upgrade needed - already using \${newImage}` }],
+        content: [{ type: 'text', text: `No upgrade needed - already using ${newImage}` }],
       };
     }
 
@@ -64,12 +64,12 @@ export async function handleK8sUpgrade(args: unknown) {
 
     await kubectl.apply(updateManifest, { namespace: validatedArgs.namespace });
 
-    let status = 'Upgrade initiated';
+    let _status = 'Upgrade initiated';
     if (validatedArgs.waitForRollout) {
-      status = await kubectl.getRolloutStatus('daemonset', 'obi', { namespace: validatedArgs.namespace });
+      _status = await kubectl.getRolloutStatus('daemonset', 'obi', { namespace: validatedArgs.namespace });
     }
 
-    const text = `=== OBI Upgraded ===\n\nPrevious: \${currentImage}\nNew: \${newImage}\n\n\${status}`;
+    const text = `=== OBI Upgraded ===\n\nPrevious: ${currentImage}\nNew: ${newImage}\n\n${_status}`;
 
     return {
       content: [{ type: 'text', text }],
@@ -77,7 +77,7 @@ export async function handleK8sUpgrade(args: unknown) {
   } catch (error) {
     logger.error('Upgrade error', { error });
     return {
-      content: [{ type: 'text', text: `Error: \${error instanceof Error ? error.message : String(error)}` }],
+      content: [{ type: 'text', text: `Error: ${error instanceof Error ? error.message : String(error)}` }],
       isError: true,
     };
   }

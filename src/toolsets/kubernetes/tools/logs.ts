@@ -47,26 +47,26 @@ export async function handleK8sLogs(args: unknown) {
 
     if (pods.length === 0) {
       return {
-        content: [{ type: 'text', text: `No OBI pods found in namespace \${validatedArgs.namespace}` }],
+        content: [{ type: 'text', text: `No OBI pods found in namespace ${validatedArgs.namespace}` }],
       };
     }
 
     const logPromises = pods.map(async pod => {
       try {
-        const logs = await kubectl.logs(pod.name, {
+        const _logs = await kubectl.logs(pod.name, {
           namespace: validatedArgs.namespace,
           tail: validatedArgs.tail,
           since: validatedArgs.since,
           timestamps: validatedArgs.timestamps,
         });
-        return `\n=== \${pod.name} ===\n\${logs}`;
+        return `\n=== ${pod.name} ===\n${_logs}`;
       } catch (error) {
-        return `\n=== \${pod.name} ===\nError: \${error}`;
+        return `\n=== ${pod.name} ===\nError: ${error}`;
       }
     });
 
-    const allLogs = await Promise.all(logPromises);
-    const text = `=== OBI Kubernetes Logs ===\n\nNamespace: \${validatedArgs.namespace}\nPods: \${pods.length}\n\${allLogs.join('\n')}`;
+    const _allLogs = await Promise.all(logPromises);
+    const text = `=== OBI Kubernetes Logs ===\n\nNamespace: ${validatedArgs.namespace}\nPods: ${pods.length}\n${_allLogs.join('\n')}`;
 
     return {
       content: [{ type: 'text', text }],
@@ -74,7 +74,7 @@ export async function handleK8sLogs(args: unknown) {
   } catch (error) {
     logger.error('Logs error', { error });
     return {
-      content: [{ type: 'text', text: `Error: \${error instanceof Error ? error.message : String(error)}` }],
+      content: [{ type: 'text', text: `Error: ${error instanceof Error ? error.message : String(error)}` }],
       isError: true,
     };
   }

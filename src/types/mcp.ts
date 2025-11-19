@@ -1,36 +1,18 @@
 /**
  * MCP-specific type definitions
+ * Re-exports from local toolset for backward compatibility
  */
+
+// Re-export argument types from local toolset tools
+export type { GetStatusArgs } from '../toolsets/local/tools/status.js';
+export type { StopArgs } from '../toolsets/local/tools/stop.js';
+export type { GetLogsArgs } from '../toolsets/local/tools/get-logs.js';
+export type { UpdateConfigArgs } from '../toolsets/local/tools/update-config.js';
+export type { DeployLocalArgs } from '../toolsets/local/tools/deploy-local.js';
 
 /**
- * Tool argument schemas for OBI MCP tools
+ * Additional MCP argument types (not yet implemented)
  */
-
-export interface GetStatusArgs {
-  verbose?: boolean;
-}
-
-export interface StopArgs {
-  force?: boolean;
-}
-
-export interface GetLogsArgs {
-  lines?: number;
-  level?: 'info' | 'warn' | 'error' | 'debug' | 'all';
-}
-
-export interface UpdateConfigArgs {
-  config: Record<string, unknown>;
-  merge?: boolean; // if true, merge with existing config; if false, replace
-  restart?: boolean; // if true, restart OBI after config update
-}
-
-export interface DeployLocalArgs {
-  config?: Record<string, unknown>;
-  configPath?: string;
-  binaryPath?: string;
-}
-
 export interface GetMetricsSummaryArgs {
   timeRangeMinutes?: number;
   aggregateBy?: 'protocol' | 'source' | 'destination';
@@ -39,13 +21,7 @@ export interface GetMetricsSummaryArgs {
 /**
  * Resource URI patterns
  */
-export const OBI_RESOURCE_URIS = {
-  CONFIG_CURRENT: 'obi://config/current',
-  STATUS_HEALTH: 'obi://status/health',
-  LOGS_RECENT: 'obi://logs/recent',
-  METRICS_SUMMARY: 'obi://metrics/summary',
-  DOCS_QUICKSTART: 'obi://docs/quickstart',
-} as const;
+export { OBI_RESOURCE_URIS } from '../toolsets/local/resources/index.js';
 
 /**
  * Prompt templates

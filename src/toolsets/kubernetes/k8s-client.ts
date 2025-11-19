@@ -41,67 +41,67 @@ export class KubectlClient {
   private buildBaseCommand(options?: KubectlExecOptions): string {
     const parts = ['kubectl'];
     const kubeconfig = options?.kubeconfig || this.kubeconfigPath;
-    if (kubeconfig) parts.push(`--kubeconfig="\${kubeconfig}"`);
+    if (kubeconfig) parts.push(`--kubeconfig="${kubeconfig}"`);
     const context = options?.context || this.defaultContext;
-    if (context) parts.push(`--context="\${context}"`);
+    if (context) parts.push(`--context="${context}"`);
     return parts.join(' ');
   }
 
-  private async exec(command: string, options?: KubectlExecOptions): Promise<string> {
-    const baseCmd = this.buildBaseCommand(options);
+  private async exec(_command: string, options?: KubectlExecOptions): Promise<string> {
+    const _baseCmd = this.buildBaseCommand(options);
     const namespace = options?.namespace || this.defaultNamespace;
-    const nsFlag = namespace ? `-n "\${namespace}"` : '';
-    const fullCommand = `\${baseCmd} \${command} \${nsFlag}`;
+    const _nsFlag = namespace ? `-n "${namespace}"` : '';
+    const fullCommand = `${_baseCmd} ${_command} ${_nsFlag}`;
 
-    logger.debug(`Executing: \${fullCommand}`);
+    logger.debug(`Executing: ${fullCommand}`);
 
     try {
       const { stdout, stderr } = await execAsync(fullCommand, { maxBuffer: 10 * 1024 * 1024 });
       if (stderr && !stderr.includes('Warning')) {
-        logger.warn(`kubectl stderr: \${stderr}`);
+        logger.warn(`kubectl stderr: ${stderr}`);
       }
       return stdout;
     } catch (error) {
-      const errMsg = error instanceof Error ? error.message : String(error);
-      logger.error(`kubectl command failed: \${errMsg}`);
-      throw new Error(`kubectl failed: \${errMsg}`);
+      const _errMsg = error instanceof Error ? error.message : String(error);
+      logger.error(`kubectl command failed: ${_errMsg}`);
+      throw new Error(`kubectl failed: ${_errMsg}`);
     }
   }
 
-  async apply(manifest: string, options?: KubectlExecOptions): Promise<void> {
-    const baseCmd = this.buildBaseCommand(options);
+  async apply(_manifest: string, options?: KubectlExecOptions): Promise<void> {
+    const _baseCmd = this.buildBaseCommand(options);
     const namespace = options?.namespace || this.defaultNamespace;
-    const nsFlag = namespace ? `-n "\${namespace}"` : '';
-    const command = `echo '\${manifest.replace(/'/g, "'\\\\''")}' | \${baseCmd} apply \${nsFlag} -f -`;
+    const _nsFlag = namespace ? `-n "${namespace}"` : '';
+    const command = `echo '${_manifest.replace(/'/g, "'\\''")}' | ${_baseCmd} apply ${_nsFlag} -f -`;
 
     logger.debug('Applying manifest...');
 
     try {
-      const { stdout, stderr } = await execAsync(command, { maxBuffer: 10 * 1024 * 1024 });
+      const { stdout: _stdout, stderr } = await execAsync(command, { maxBuffer: 10 * 1024 * 1024 });
       if (stderr && !stderr.includes('Warning')) {
-        logger.warn(`kubectl apply stderr: \${stderr}`);
+        logger.warn(`kubectl apply stderr: ${stderr}`);
       }
-      logger.info(`kubectl apply result: \${stdout.trim()}`);
+      logger.info(`kubectl apply result: ${_stdout.trim()}`);
     } catch (error) {
-      const errMsg = error instanceof Error ? error.message : String(error);
-      logger.error(`kubectl apply failed: \${errMsg}`);
-      throw new Error(`Failed to apply manifest: \${errMsg}`);
+      const _errMsg = error instanceof Error ? error.message : String(error);
+      logger.error(`kubectl apply failed: ${_errMsg}`);
+      throw new Error(`Failed to apply manifest: ${_errMsg}`);
     }
   }
 
-  async delete(resourceType: string, name: string, options?: KubectlExecOptions): Promise<void> {
-    await this.exec(`delete \${resourceType} "\${name}" --ignore-not-found=true`, options);
-    logger.info(`Deleted \${resourceType}/\${name}`);
+  async delete(_resourceType: string, _name: string, options?: KubectlExecOptions): Promise<void> {
+    await this.exec(`delete ${_resourceType} "${_name}" --ignore-not-found=true`, options);
+    logger.info(`Deleted ${_resourceType}/${_name}`);
   }
 
-  async get<T = any>(resource: string, options?: KubectlExecOptions): Promise<T> {
-    const output = await this.exec(`get \${resource} -o json`, options);
+  async get<T = any>(_resource: string, options?: KubectlExecOptions): Promise<T> {
+    const output = await this.exec(`get ${_resource} -o json`, options);
     return JSON.parse(output) as T;
   }
 
   async getPods(labelSelector?: string, options?: KubectlExecOptions): Promise<PodInfo[]> {
-    const selector = labelSelector ? `-l "\${labelSelector}"` : '';
-    const output = await this.exec(`get pods \${selector} -o json`, options);
+    const _selector = labelSelector ? `-l "${labelSelector}"` : '';
+    const output = await this.exec(`get pods ${_selector} -o json`, options);
     const result = JSON.parse(output);
     if (!result.items) return [];
 
@@ -116,36 +116,36 @@ export class KubectlClient {
     }));
   }
 
-  async logs(podName: string, options?: KubectlExecOptions & LogOptions): Promise<string> {
+  async logs(_podName: string, options?: KubectlExecOptions & LogOptions): Promise<string> {
     const logOpts: string[] = [];
-    if (options?.since) logOpts.push(`--since="\${options.since}"`);
-    if (options?.tail) logOpts.push(`--tail=\${options.tail}`);
+    if (options?.since) logOpts.push(`--since="${options.since}"`);
+    if (options?.tail) logOpts.push(`--tail=${options.tail}`);
     if (options?.timestamps) logOpts.push('--timestamps=true');
     if (options?.previous) logOpts.push('--previous=true');
 
-    const command = `logs "\${podName}" \${logOpts.join(' ')}`;
+    const command = `logs "${_podName}" ${logOpts.join(' ')}`;
     return await this.exec(command, options);
   }
 
-  async namespaceExists(namespace: string): Promise<boolean> {
+  async namespaceExists(_namespace: string): Promise<boolean> {
     try {
-      await this.exec(`get namespace "\${namespace}"`, {});
+      await this.exec(`get namespace "${_namespace}"`, {});
       return true;
     } catch {
       return false;
     }
   }
 
-  async createNamespace(namespace: string): Promise<void> {
-    await this.exec(`create namespace "\${namespace}"`, {});
-    logger.info(`Created namespace: \${namespace}`);
+  async createNamespace(_namespace: string): Promise<void> {
+    await this.exec(`create namespace "${_namespace}"`, {});
+    logger.info(`Created namespace: ${_namespace}`);
   }
 
-  async getRolloutStatus(resourceType: string, name: string, options?: KubectlExecOptions): Promise<string> {
+  async getRolloutStatus(_resourceType: string, _name: string, options?: KubectlExecOptions): Promise<string> {
     try {
-      return await this.exec(`rollout status \${resourceType}/"\${name}"`, options);
+      return await this.exec(`rollout status ${_resourceType}/"${_name}"`, options);
     } catch (error) {
-      return `Rollout status unavailable: \${error instanceof Error ? error.message : String(error)}`;
+      return `Rollout status unavailable: ${error instanceof Error ? error.message : String(error)}`;
     }
   }
 
@@ -171,34 +171,34 @@ export class KubectlClient {
         age: this.calculateAge(node.metadata.creationTimestamp),
       }));
     } catch (error) {
-      logger.error(`Failed to get nodes: \${error}`);
+      logger.error(`Failed to get nodes: ${error}`);
       return [];
     }
   }
 
-  async getConfigMap(name: string, options?: KubectlExecOptions): Promise<any> {
-    return await this.get(`configmap "\${name}"`, options);
+  async getConfigMap(_name: string, options?: KubectlExecOptions): Promise<any> {
+    return await this.get(`configmap "${_name}"`, options);
   }
 
-  async createConfigMap(name: string, data: Record<string, string>, options?: KubectlExecOptions): Promise<void> {
-    const dataArgs = Object.entries(data)
-      .map(([key, value]) => `--from-literal="\${key}=\${value}"`)
+  async createConfigMap(_name: string, data: Record<string, string>, options?: KubectlExecOptions): Promise<void> {
+    const _dataArgs = Object.entries(data)
+      .map(([_key, _value]) => `--from-literal="${_key}=${_value}"`)
       .join(' ');
 
     try {
-      await this.exec(`create configmap "\${name}" \${dataArgs}`, options);
-      logger.info(`Created ConfigMap: \${name}`);
+      await this.exec(`create configmap "${_name}" ${_dataArgs}`, options);
+      logger.info(`Created ConfigMap: ${_name}`);
     } catch {
-      await this.exec(`create configmap "\${name}" \${dataArgs} --dry-run=client -o yaml`, options)
+      await this.exec(`create configmap "${_name}" ${_dataArgs} --dry-run=client -o yaml`, options)
         .then((manifest) => this.apply(manifest, options));
-      logger.info(`Updated ConfigMap: \${name}`);
+      logger.info(`Updated ConfigMap: ${_name}`);
     }
   }
 
   private getPodReadyStatus(pod: any): string {
-    const totalContainers = pod.spec.containers?.length || 0;
-    const readyContainers = pod.status.containerStatuses?.filter((c: any) => c.ready).length || 0;
-    return `\${readyContainers}/\${totalContainers}`;
+    const _totalContainers = pod.spec.containers?.length || 0;
+    const _readyContainers = pod.status.containerStatuses?.filter((c: any) => c.ready).length || 0;
+    return `${_readyContainers}/${_totalContainers}`;
   }
 
   private getPodRestartCount(pod: any): number {
@@ -211,11 +211,11 @@ export class KubectlClient {
     const now = new Date();
     const diffMs = now.getTime() - created.getTime();
     const diffMins = Math.floor(diffMs / 60000);
-    if (diffMins < 60) return `\${diffMins}m`;
+    if (diffMins < 60) return `${diffMins}m`;
     const diffHours = Math.floor(diffMins / 60);
-    if (diffHours < 24) return `\${diffHours}h`;
-    const diffDays = Math.floor(diffHours / 24);
-    return `\${diffDays}d`;
+    if (diffHours < 24) return `${diffHours}h`;
+    const _diffDays = Math.floor(diffHours / 24);
+    return `${_diffDays}d`;
   }
 
   private getNodeStatus(node: any): string {
