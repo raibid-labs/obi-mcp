@@ -9,7 +9,7 @@ NC='\033[0m' # No Color
 
 # Configuration
 NAMESPACE="${OBI_NAMESPACE:-observability}"
-OBI_IMAGE="${OBI_IMAGE:-otel/opentelemetry-ebpf:latest}"
+OBI_IMAGE="${OBI_IMAGE:-otel/ebpf-instrument:latest}"
 OTLP_ENDPOINT="${OTLP_ENDPOINT:-http://localhost:4317}"
 OBI_CPU_LIMIT="${OBI_CPU_LIMIT:-500m}"
 OBI_MEMORY_LIMIT="${OBI_MEMORY_LIMIT:-512Mi}"
@@ -146,6 +146,8 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.namespace
+        - name: OTEL_EBPF_METRIC_FEATURES
+          value: "network,application"
         resources:
           limits:
             cpu: $OBI_CPU_LIMIT
