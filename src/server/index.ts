@@ -1,6 +1,7 @@
 /**
  * OBI MCP Server
  * Main server implementation using Model Context Protocol SDK
+ * Supports dynamic toolset registration for multi-platform deployment
  */
 
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
@@ -13,38 +14,35 @@ import {
   ListPromptsRequestSchema,
   GetPromptRequestSchema,
   Tool,
-  Prompt,
   Resource,
+  Prompt,
 } from '@modelcontextprotocol/sdk/types.js';
-import logger from '../utils/logger.js';
-import {
-  getStatusTool,
-  handleGetStatus,
-  getConfigTool,
-  handleGetConfig,
-  getLogsTool,
-  handleGetLogs,
-  getDeployLocalTool,
-  handleDeployLocal,
-  updateConfigTool,
-  handleUpdateConfig,
-  stopTool,
-  handleStop,
-} from '../tools/index.js';
-import { listResources, handleResourceRead } from '../resources/index.js';
-import { prompts, getPromptTemplate } from '../prompts/index.js';
+import { logger, getServerConfig } from '../core/index.js';
+import type { Toolset, ToolHandler, ResourceReadHandler } from '../toolsets/base/index.js';
+import { localToolset } from '../toolsets/local/index.js';
 import { dockerToolset } from '../toolsets/docker/index.js';
 import { kubernetesToolset } from '../toolsets/kubernetes/index.js';
 
 /**
- * OBI MCP Server class
+ * Tool response type
+ */
+interface ToolResponse {
+  content: Array<{ type: string; text: string }>;
+  isError?: boolean;
+}
+
+/**
+ * OBI MCP Server class with dynamic toolset support
  */
 export class ObiMcpServer {
   private server: Server;
+  private toolsets: Map<string, Toolset>;
   private tools: Map<string, Tool>;
-  private toolHandlers: Map<string, (args: unknown) => Promise<any>>;
+  private toolHandlers: Map<string, ToolHandler>;
   private resources: Resource[];
+  private resourceHandlers: Map<string, ResourceReadHandler>;
   private prompts: Prompt[];
+  private promptTemplateGenerators: Map<string, (args?: unknown) => string>;
 
   constructor() {
     this.server = new Server(
@@ -61,104 +59,90 @@ export class ObiMcpServer {
       }
     );
 
+    this.toolsets = new Map();
     this.tools = new Map();
     this.toolHandlers = new Map();
     this.resources = [];
+    this.resourceHandlers = new Map();
     this.prompts = [];
+    this.promptTemplateGenerators = new Map();
 
-    this.setupTools();
-    this.setupResources();
-    this.setupPrompts();
+    this.registerToolsets();
     this.setupHandlers();
   }
 
   /**
-   * Register all available tools
+   * Register all enabled toolsets based on configuration
    */
-  private setupTools(): void {
-    // Register core OBI tools
-    this.tools.set(getStatusTool.name, getStatusTool);
-    this.toolHandlers.set(getStatusTool.name, handleGetStatus);
+  private registerToolsets(): void {
+    const config = getServerConfig();
 
-    this.tools.set(getConfigTool.name, getConfigTool);
-    this.toolHandlers.set(getConfigTool.name, handleGetConfig);
+    logger.info('Registering toolsets...');
 
-    this.tools.set(getLogsTool.name, getLogsTool);
-    this.toolHandlers.set(getLogsTool.name, handleGetLogs);
+    // Register local toolset if enabled
+    if (config.toolsets?.local?.enabled !== false) {
+      this.registerToolset(localToolset);
+    }
 
-    this.tools.set(getDeployLocalTool.name, getDeployLocalTool);
-    this.toolHandlers.set(getDeployLocalTool.name, handleDeployLocal);
+    // Register Docker toolset if enabled
+    if (config.toolsets?.docker?.enabled !== false) {
+      this.registerToolset(dockerToolset);
+    }
 
-    this.tools.set(updateConfigTool.name, updateConfigTool);
-    this.toolHandlers.set(updateConfigTool.name, handleUpdateConfig);
+    // Register Kubernetes toolset if enabled
+    if (config.toolsets?.kubernetes?.enabled !== false) {
+      this.registerToolset(kubernetesToolset);
+    }
 
-    this.tools.set(stopTool.name, stopTool);
-    this.toolHandlers.set(stopTool.name, handleStop);
+    logger.info(`Registered ${this.toolsets.size} toolset(s)`);
+  }
 
-    // Register Docker toolset tools
-    const dockerTools = dockerToolset.getTools();
-    dockerTools.forEach((tool) => {
+  /**
+   * Register a single toolset
+   */
+  private registerToolset(toolset: Toolset): void {
+    logger.info(`Registering toolset: ${toolset.name}`);
+
+    // Add to toolsets map
+    this.toolsets.set(toolset.name, toolset);
+
+    // Register all tools from this toolset
+    const tools = toolset.getTools();
+    tools.forEach((tool) => {
       this.tools.set(tool.name, tool);
-      const handler = dockerToolset.getToolHandler(tool.name);
+      const handler = toolset.getToolHandler(tool.name);
       if (handler) {
         this.toolHandlers.set(tool.name, handler);
       }
     });
 
-    // Register Kubernetes toolset tools
-    const k8sTools = kubernetesToolset.getTools();
-    k8sTools.forEach((tool) => {
-      this.tools.set(tool.name, tool);
-      const handler = kubernetesToolset.getToolHandler(tool.name);
-      if (handler) {
-        this.toolHandlers.set(tool.name, handler);
+    // Register all resources from this toolset
+    const resources = toolset.getResources();
+    resources.forEach((resource) => {
+      this.resources.push(resource);
+    });
+
+    // Register resource read handler
+    const resourceReadHandler = toolset.getResourceReadHandler();
+    if (resourceReadHandler) {
+      // Map all resource URIs to this handler
+      resources.forEach((resource) => {
+        this.resourceHandlers.set(resource.uri, resourceReadHandler);
+      });
+    }
+
+    // Register all prompts from this toolset
+    const prompts = toolset.getPrompts();
+    prompts.forEach((prompt) => {
+      this.prompts.push(prompt);
+      const generator = toolset.getPromptTemplateGenerator(prompt.name);
+      if (generator) {
+        this.promptTemplateGenerators.set(prompt.name, generator);
       }
     });
 
     logger.info(
-      `Registered ${this.tools.size} tools (${dockerTools.length} Docker, ${k8sTools.length} Kubernetes)`
-    );
-  }
-
-  /**
-   * Register all available resources
-   */
-  private setupResources(): void {
-    // Get core resources
-    const coreResources = listResources().resources;
-
-    // Get Docker toolset resources
-    const dockerResources = dockerToolset.getResources();
-
-    // Get Kubernetes toolset resources
-    const k8sResources = kubernetesToolset.getResources();
-
-    // Combine all resources
-    this.resources = [...coreResources, ...dockerResources, ...k8sResources];
-
-    logger.info(
-      `Registered ${this.resources.length} resources (${dockerResources.length} Docker, ${k8sResources.length} Kubernetes)`
-    );
-  }
-
-  /**
-   * Register all available prompts
-   */
-  private setupPrompts(): void {
-    // Get core prompts
-    const corePrompts = prompts;
-
-    // Get Docker toolset prompts
-    const dockerPrompts = dockerToolset.getPrompts();
-
-    // Get Kubernetes toolset prompts
-    const k8sPrompts = kubernetesToolset.getPrompts();
-
-    // Combine all prompts
-    this.prompts = [...corePrompts, ...dockerPrompts, ...k8sPrompts];
-
-    logger.info(
-      `Registered ${this.prompts.length} prompts (${dockerPrompts.length} Docker, ${k8sPrompts.length} Kubernetes)`
+      `[${toolset.name}] Registered ${tools.length} tools, ${resources.length} resources, ${prompts.length} prompts`
     );
   }
 
@@ -209,19 +193,14 @@ export class ObiMcpServer {
 
       logger.info(`Handling ReadResource request: ${uri}`);
 
+      const handler = this.resourceHandlers.get(uri);
+      if (!handler) {
+        logger.warn(`Resource handler not found for URI: ${uri}`);
+        throw new Error(`Unknown resource URI: ${uri}`);
+      }
+
       try {
-        // Check if resource belongs to Docker toolset
-        if (dockerToolset.hasResource(uri)) {
-          return await dockerToolset.handleResourceRead(uri);
-        }
-
-        // Check if resource belongs to Kubernetes toolset
-        if (kubernetesToolset.hasResource(uri)) {
-          return await kubernetesToolset.handleResourceRead(uri);
-        }
-
-        // Otherwise, use core resource handler
-        const result = await handleResourceRead(uri);
+        const result = await handler(uri);
         return result;
       } catch (error) {
         logger.error(`Error reading resource ${uri}:`, error);
@@ -243,17 +222,14 @@ export class ObiMcpServer {
 
       logger.info(`Handling GetPrompt request: ${name}`);
 
-      try {
-        // Check if prompt belongs to Docker toolset
-        let template: string;
-        if (dockerToolset.hasPrompt(name)) {
-          template = dockerToolset.getPromptTemplate(name, args);
-        } else if (kubernetesToolset.hasPrompt(name)) {
-          template = kubernetesToolset.getPromptTemplate(name, args);
-        } else {
-          template = getPromptTemplate(name, args);
-        }
+      const generator = this.promptTemplateGenerators.get(name);
+      if (!generator) {
+        logger.warn(`Prompt template generator not found: ${name}`);
+        throw new Error(`Unknown prompt: ${name}`);
+      }
 
+      try {
+        const template = generator(args);
         return {
           messages: [
             {
@@ -280,11 +256,20 @@ export class ObiMcpServer {
   async start(): Promise<void> {
     logger.info('Starting OBI MCP Server...');
 
+    // Initialize all toolsets
+    for (const [name, toolset] of this.toolsets) {
+      if (toolset.initialize) {
+        logger.info(`Initializing toolset: ${name}`);
+        await toolset.initialize();
+      }
+    }
+
     const transport = new StdioServerTransport();
     await this.server.connect(transport);
 
     logger.info('OBI MCP Server started successfully');
     logger.info(`Available tools: ${Array.from(this.tools.keys()).join(', ')}`);
+    logger.info(`Registered toolsets: ${Array.from(this.toolsets.keys()).join(', ')}`);
   }
 
   /**
@@ -292,6 +277,15 @@ export class ObiMcpServer {
    */
   async stop(): Promise<void> {
     logger.info('Stopping OBI MCP Server...');
+
+    // Cleanup all toolsets
+    for (const [name, toolset] of this.toolsets) {
+      if (toolset.cleanup) {
+        logger.info(`Cleaning up toolset: ${name}`);
+        await toolset.cleanup();
+      }
+    }
+
     await this.server.close();
     logger.info('OBI MCP Server stopped');
   }
@@ -310,7 +304,7 @@ export class ObiMcpServer {
    * Test helper: Call a tool directly
    * @internal For testing only
    */
-  async _testCallTool(name: string, args: unknown): Promise<any> {
+  async _testCallTool(name: string, args: unknown): Promise<ToolResponse> {
     const handler = this.toolHandlers.get(name);
     if (!handler) {
       throw new Error(`Unknown tool: ${name}`);
@@ -332,14 +326,14 @@ export class ObiMcpServer {
    * Test helper: Read a resource directly
    * @internal For testing only
    */
-  async _testReadResource(uri: string): Promise<any> {
-    if (dockerToolset.hasResource(uri)) {
-      return await dockerToolset.handleResourceRead(uri);
+  async _testReadResource(uri: string): Promise<{
+    contents: Array<{ uri: string; mimeType: string; text?: string }>;
+  }> {
+    const handler = this.resourceHandlers.get(uri);
+    if (!handler) {
+      throw new Error(`Unknown resource URI: ${uri}`);
     }
-    if (kubernetesToolset.hasResource(uri)) {
-      return await kubernetesToolset.handleResourceRead(uri);
-    }
-    return await handleResourceRead(uri);
+    return await handler(uri);
   }
 
   /**
@@ -356,16 +350,17 @@ export class ObiMcpServer {
    * Test helper: Get a prompt template
    * @internal For testing only
    */
-  async _testGetPrompt(name: string, args?: unknown): Promise<any> {
-    let template: string;
-    if (dockerToolset.hasPrompt(name)) {
-      template = dockerToolset.getPromptTemplate(name, args);
-    } else if (kubernetesToolset.hasPrompt(name)) {
-      template = kubernetesToolset.getPromptTemplate(name, args);
-    } else {
-      template = getPromptTemplate(name, args);
+  async _testGetPrompt(name: string, args?: unknown): Promise<{
+    messages: Array<{
+      role: string;
+      content: { type: string; text: string };
+    }>;
+  }> {
+    const generator = this.promptTemplateGenerators.get(name);
+    if (!generator) {
+      throw new Error(`Unknown prompt: ${name}`);
     }
-
+    const template = generator(args);
     return {
       messages: [
         {

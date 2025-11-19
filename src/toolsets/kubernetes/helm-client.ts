@@ -298,7 +298,7 @@ export class HelmClient {
       const version = stdout.trim();
       logger.debug(`Helm version: ${version}`);
       return { installed: true, version };
-    } catch (error) {
+    } catch (_error) {
       logger.warn('Helm is not installed or not in PATH');
       return { installed: false };
     }

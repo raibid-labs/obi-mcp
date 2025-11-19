@@ -4,6 +4,7 @@
  */
 
 import { Tool, Prompt, Resource } from '@modelcontextprotocol/sdk/types.js';
+import type { Toolset } from '../base/index.js';
 import {
   dockerDeployTool,
   handleDockerDeploy,
@@ -24,7 +25,10 @@ import logger from '../../utils/logger.js';
  * Docker Toolset
  * Provides comprehensive Docker management capabilities for OBI
  */
-export class DockerToolset {
+export class DockerToolset implements Toolset {
+  readonly name = 'docker';
+  readonly description = 'Docker deployment and management for OBI';
+
   private tools: Map<string, Tool>;
   private toolHandlers: Map<string, (args: unknown) => Promise<any>>;
   private resources: Resource[];
@@ -112,10 +116,10 @@ export class DockerToolset {
   }
 
   /**
-   * Handle resource read
+   * Get resource read handler
    */
-  async handleResourceRead(uri: string): Promise<any> {
-    return await handleDockerResourceRead(uri);
+  getResourceReadHandler() {
+    return handleDockerResourceRead;
   }
 
   /**
@@ -126,13 +130,13 @@ export class DockerToolset {
   }
 
   /**
-   * Get prompt template
+   * Get prompt template generator
    */
-  getPromptTemplate(name: string, args?: unknown): string {
+  getPromptTemplateGenerator(name: string) {
     if (name === setupDockerPrompt.name) {
-      return getSetupDockerTemplate(args as { environment?: string; includeCollector?: string });
+      return (args?: unknown) => getSetupDockerTemplate(args as { environment?: string; includeCollector?: string });
     }
-    throw new Error(`Unknown Docker prompt: ${name}`);
+    return undefined;
   }
 
   /**

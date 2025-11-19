@@ -47,7 +47,7 @@ export function listDockerResources(): Resource[] {
  * Handle Docker resource reads
  */
 export async function handleDockerResourceRead(uri: string): Promise<{
-  contents: Array<{ uri: string; mimeType?: string; text: string }>;
+  contents: Array<{ uri: string; mimeType: string; text?: string }>;
 }> {
   logger.info('Reading Docker resource', { uri });
 
