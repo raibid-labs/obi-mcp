@@ -1,0 +1,118 @@
+# Default values for OBI Helm chart
+
+image:
+  repository: otel/ebpf-instrument
+  tag: main
+  pullPolicy: IfNotPresent
+
+# Image pull secrets for private registries
+imagePullSecrets: []
+
+resources:
+  limits:
+    memory: 512Mi
+    cpu: 500m
+  requests:
+    memory: 256Mi
+    cpu: 100m
+
+# OBI Configuration
+obi:
+  # OpenTelemetry endpoint
+  otlpEndpoint: "http://otel-collector:4317"
+
+  # Port to instrument
+  openPort: 8080
+
+  # Enable network instrumentation
+  networkEnabled: true
+
+  # Allowed attributes to capture
+  allowedAttributes:
+    - http.method
+    - http.status_code
+    - http.target
+    - http.route
+    - k8s.namespace.name
+    - k8s.pod.name
+    - k8s.pod.uid
+    - k8s.deployment.name
+
+  # Service name
+  serviceName: ""
+
+  # Additional environment variables
+  extraEnv: []
+  # - name: OTEL_LOG_LEVEL
+  #   value: debug
+
+# Security Context
+securityContext:
+  privileged: true
+  capabilities:
+    add:
+      - SYS_ADMIN
+      - SYS_PTRACE
+      - NET_ADMIN
+  readOnlyRootFilesystem: false
+
+# DaemonSet Configuration
+daemonset:
+  updateStrategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+
+  # Annotations for the DaemonSet
+  annotations: {}
+
+  # Labels for the DaemonSet
+  labels: {}
+
+  # Pod annotations
+  podAnnotations: {}
+
+  # Pod labels
+  podLabels: {}
+
+# Service Account
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: true
+  # Annotations to add to the service account
+  annotations: {}
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name: ""
+
+# RBAC
+rbac:
+  # Specifies whether RBAC resources should be created
+  create: true
+
+# Node Selector
+nodeSelector: {}
+
+# Tolerations
+tolerations:
+  - effect: NoSchedule
+    key: node-role.kubernetes.io/master
+    operator: Exists
+  - effect: NoSchedule
+    key: node-role.kubernetes.io/control-plane
+    operator: Exists
+
+# Affinity
+affinity: {}
+
+# Priority class name
+priorityClassName: ""
+
+# Host network mode
+hostNetwork: true
+
+# Host PID namespace
+hostPID: true
+
+# DNS policy
+dnsPolicy: ClusterFirstWithHostNet

@@ -1,0 +1,17 @@
+apiVersion: v2
+name: obi
+description: OpenTelemetry eBPF Instrumentation Helm Chart
+type: application
+version: 0.1.0
+appVersion: "main"
+keywords:
+  - opentelemetry
+  - ebpf
+  - observability
+  - instrumentation
+home: https://github.com/raibid-labs/obi-mcp
+sources:
+  - https://github.com/raibid-labs/obi-mcp
+maintainers:
+  - name: obi-mcp Team
+    email: support@raibid-labs.com
