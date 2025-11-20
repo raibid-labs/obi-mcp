@@ -2,6 +2,16 @@
 
 Complete, production-ready reference implementations for deploying OBI (OpenTelemetry eBPF Instrumentation) to various Kubernetes distributions.
 
+## Recommended Starting Point
+
+**[k3d Example](./k3d/)** is the most comprehensive reference implementation with:
+- Complete documentation (Quick Start, Setup Guide, 50+ Usage Examples)
+- Production-ready configurations (OBI DaemonSet, OTLP Collector, Sample App)
+- AI-powered management examples with OBI MCP Server
+- Optional automation tooling (justfile)
+
+Start here if you want the complete reference experience.
+
 ## Quick Start
 
 Choose your platform and get OBI running in minutes:
