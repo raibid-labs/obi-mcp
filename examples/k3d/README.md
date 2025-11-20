@@ -100,7 +100,78 @@ k3d/
 ├── setup.sh              # Create and configure cluster
 ├── deploy-obi.sh         # Deploy OBI DaemonSet
 ├── verify.sh             # Verify deployment health
-└── teardown.sh           # Clean up all resources
+├── teardown.sh           # Clean up all resources
+└── manifests/            # Production-ready Kubernetes manifests
+    ├── obi-daemonset.yaml    # OBI DaemonSet with RBAC
+    ├── otel-collector.yaml   # OpenTelemetry Collector
+    └── sample-app.yaml       # Sample microservices application
+```
+
+## Configuration Files
+
+### Manifests
+
+Production-ready Kubernetes manifests are provided in `manifests/`:
+
+#### OBI DaemonSet (`obi-daemonset.yaml`)
+
+Deploys OBI on every cluster node with:
+- Complete RBAC setup (ServiceAccount, ClusterRole, ClusterRoleBinding)
+- Privileged security context for eBPF operations
+- Resource limits and requests
+- Health checks and monitoring
+- HostPID and HostNetwork access
+
+**Key configurations:**
+- Namespace: `observability`
+- Image: `otel/ebpf-instrument:main`
+- OTLP endpoint: `http://otel-collector.observability.svc.cluster.local:4317`
+
+**Deploy:**
+```bash
+kubectl apply -f manifests/obi-daemonset.yaml
+```
+
+#### OpenTelemetry Collector (`otel-collector.yaml`)
+
+OTLP collector for receiving metrics from OBI:
+- Receives metrics on gRPC (4317) and HTTP (4318)
+- Batch processing for efficiency
+- Prometheus exporter on port 8889
+- File exporter for debugging
+
+**Deploy:**
+```bash
+kubectl apply -f manifests/otel-collector.yaml
+```
+
+#### Sample Application (`sample-app.yaml`)
+
+Multi-tier demo application for testing OBI:
+- Frontend: Nginx web server
+- Backend: API service
+- Database: PostgreSQL
+- Cache: Redis
+- Load Generator: Automated traffic
+
+**Deploy:**
+```bash
+kubectl apply -f manifests/sample-app.yaml
+```
+
+### Quick Deploy All Components
+
+```bash
+# Deploy collector and sample app
+kubectl apply -f manifests/otel-collector.yaml
+kubectl apply -f manifests/sample-app.yaml
+
+# Deploy OBI (after cluster is created)
+kubectl apply -f manifests/obi-daemonset.yaml
+
+# Verify all running
+kubectl get pods -n observability
+kubectl get pods -n demo-app
 ```
 
 ## Step-by-Step Guide

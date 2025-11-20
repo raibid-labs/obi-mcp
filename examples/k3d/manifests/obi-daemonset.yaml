@@ -1,0 +1,314 @@
+# OBI DaemonSet Deployment for K3D
+# Deploys OpenTelemetry eBPF Instrumentation as a DaemonSet (one per node)
+# This is the CORRECT way to deploy OBI in Kubernetes
+
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: observability
+  labels:
+    name: observability
+
+---
+# ServiceAccount for OBI
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: obi
+  namespace: observability
+  labels:
+    app: obi
+    app.kubernetes.io/name: obi
+    app.kubernetes.io/component: instrumentation
+
+---
+# ClusterRole - Permissions OBI needs to collect Kubernetes metadata
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: obi
+  labels:
+    app: obi
+rules:
+  # Read pods to get metadata
+  - apiGroups: ['']
+    resources: ['pods', 'services', 'nodes']
+    verbs: ['list', 'watch', 'get']
+  # Read deployments/replicasets for owner metadata
+  - apiGroups: ['apps']
+    resources: ['replicasets', 'deployments', 'daemonsets', 'statefulsets']
+    verbs: ['list', 'watch', 'get']
+
+---
+# ClusterRoleBinding - Binds ClusterRole to ServiceAccount
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: obi
+  labels:
+    app: obi
+subjects:
+  - kind: ServiceAccount
+    name: obi
+    namespace: observability
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: obi
+
+---
+# ConfigMap - OBI Configuration
+# This configuration is optimized for k3d deployments
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: obi-config
+  namespace: observability
+  labels:
+    app: obi
+data:
+  obi-config.yml: |
+    # OBI Configuration for K3D
+
+    # Trace printer (for development - remove in production)
+    trace_printer: text
+
+    # OpenTelemetry traces export
+    otel_traces_export:
+      # OTLP endpoint (collector service)
+      endpoint: http://otel-collector.observability.svc.cluster.local:4317
+
+      # Sampler configuration
+      sampler:
+        name: parentbased_traceidratio
+        arg: "1.0"  # Sample 100% for development
+
+    # OpenTelemetry metrics export
+    otel_metrics_export:
+      # OTLP endpoint (collector service)
+      endpoint: http://otel-collector.observability.svc.cluster.local:4317
+
+      # Metrics interval
+      interval: 30s
+
+    # Network configuration
+    network:
+      enable: true
+
+      # HTTP/HTTPS detection
+      enable_http_ssl: true
+
+      # Allowed attributes
+      allowed_attributes:
+        # Source Kubernetes metadata
+        - k8s.src.owner.name
+        - k8s.src.owner.type
+        - k8s.src.namespace
+        - k8s.src.pod.name
+        - k8s.src.pod.uid
+
+        # Destination Kubernetes metadata
+        - k8s.dst.owner.name
+        - k8s.dst.owner.type
+        - k8s.dst.namespace
+        - k8s.dst.pod.name
+        - k8s.dst.pod.uid
+
+        # HTTP attributes
+        - http.method
+        - http.status_code
+        - http.target
+        - http.host
+
+        # gRPC attributes
+        - rpc.system
+        - rpc.service
+        - rpc.method
+        - rpc.grpc.status_code
+
+    # Kubernetes metadata collection
+    attributes:
+      kubernetes:
+        enable: true
+
+        # Cluster name (for multi-cluster setups)
+        cluster_name: k3d-obi-demo
+
+    # Log configuration
+    log:
+      level: info
+      format: json
+
+---
+# DaemonSet - OBI runs on each node
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: obi
+  namespace: observability
+  labels:
+    app: obi
+    app.kubernetes.io/name: obi
+    app.kubernetes.io/component: instrumentation
+    app.kubernetes.io/managed-by: kubectl
+spec:
+  selector:
+    matchLabels:
+      app: obi
+
+  # Update strategy - rolling update
+  updateStrategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+
+  template:
+    metadata:
+      labels:
+        app: obi
+        app.kubernetes.io/name: obi
+      annotations:
+        # Force restart when ConfigMap changes
+        checksum/config: "{{ .Values.configChecksum }}"
+
+    spec:
+      # CRITICAL: hostPID required for eBPF to instrument host processes
+      hostPID: true
+
+      # ServiceAccount with RBAC permissions
+      serviceAccountName: obi
+
+      # Priority to ensure OBI runs before other pods
+      priorityClassName: system-node-critical
+
+      # Tolerations to run on all nodes (including master/control-plane)
+      tolerations:
+        - effect: NoSchedule
+          operator: Exists
+        - effect: NoExecute
+          operator: Exists
+
+      containers:
+        - name: obi
+          # OBI container image
+          image: otel/ebpf-instrument:main
+          imagePullPolicy: Always
+
+          # Security context - REQUIRED for eBPF
+          securityContext:
+            # Option 1: Privileged mode (simpler, less secure)
+            privileged: true
+
+            # Option 2: Granular capabilities (more secure)
+            # Comment out 'privileged: true' and uncomment below for production:
+            # runAsUser: 0
+            # capabilities:
+            #   add:
+            #     - BPF                  # Load eBPF programs
+            #     - SYS_PTRACE           # Trace processes
+            #     - NET_RAW              # Raw network access
+            #     - CHECKPOINT_RESTORE   # Process checkpoint
+            #     - DAC_READ_SEARCH      # Read access
+            #     - PERFMON              # Performance monitoring
+            #     - SYS_RESOURCE         # Resource limits
+            #   drop:
+            #     - ALL
+
+          # Environment variables
+          env:
+            # Enable Kubernetes metadata decoration
+            - name: OTEL_EBPF_KUBE_METADATA_ENABLE
+              value: "true"
+
+            # Configuration file path
+            - name: OTEL_EBPF_CONFIG_PATH
+              value: /config/obi-config.yml
+
+            # Node name (for metadata)
+            - name: OTEL_RESOURCE_ATTRIBUTES
+              value: k8s.node.name=$(NODE_NAME)
+
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+
+            # Log level
+            - name: OTEL_LOG_LEVEL
+              value: info
+
+          # Mount configuration
+          volumeMounts:
+            - name: config
+              mountPath: /config
+              readOnly: true
+
+            # Optional: Mount for debugging
+            # - name: sys-kernel-debug
+            #   mountPath: /sys/kernel/debug
+            #   readOnly: true
+
+          # Resource requests and limits
+          resources:
+            requests:
+              memory: 256Mi
+              cpu: 100m
+            limits:
+              memory: 512Mi
+              cpu: 500m
+
+          # Liveness probe
+          livenessProbe:
+            exec:
+              command:
+                - pgrep
+                - -f
+                - ebpf-instrument
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+
+          # Readiness probe
+          readinessProbe:
+            exec:
+              command:
+                - pgrep
+                - -f
+                - ebpf-instrument
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 2
+
+      # Volumes
+      volumes:
+        - name: config
+          configMap:
+            name: obi-config
+
+        # Optional: For debugging eBPF programs
+        # - name: sys-kernel-debug
+        #   hostPath:
+        #     path: /sys/kernel/debug
+        #     type: Directory
+
+      # DNS policy
+      dnsPolicy: ClusterFirst
+
+      # Restart policy
+      restartPolicy: Always
+
+---
+# Optional: PodDisruptionBudget to ensure OBI availability during updates
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: obi
+  namespace: observability
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: obi

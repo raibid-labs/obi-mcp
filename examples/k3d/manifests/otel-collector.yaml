@@ -1,0 +1,215 @@
+---
+# OpenTelemetry Collector for K3D Cluster
+# This collector receives metrics from OBI and exports them to various backends
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: observability
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: otel-collector-config
+  namespace: observability
+data:
+  otel-collector-config.yaml: |
+    receivers:
+      # OTLP receiver for metrics from OBI
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+          http:
+            endpoint: 0.0.0.0:4318
+
+    processors:
+      # Batch processor to improve performance
+      batch:
+        timeout: 10s
+        send_batch_size: 1024
+
+      # Memory limiter to prevent OOM
+      memory_limiter:
+        check_interval: 1s
+        limit_mib: 512
+        spike_limit_mib: 128
+
+      # Resource processor to add cluster metadata
+      resource:
+        attributes:
+          - key: cluster.name
+            value: k3d-obi-demo
+            action: upsert
+          - key: environment
+            value: development
+            action: upsert
+
+      # Attributes processor for filtering/transformation
+      attributes:
+        actions:
+          - key: k8s.cluster.name
+            value: k3d-obi-demo
+            action: insert
+
+    exporters:
+      # Logging exporter for debugging
+      logging:
+        loglevel: info
+        sampling_initial: 5
+        sampling_thereafter: 200
+
+      # OTLP exporter (configure for your backend)
+      # Uncomment and configure for production use
+      # otlp:
+      #   endpoint: your-backend:4317
+      #   tls:
+      #     insecure: false
+
+      # Prometheus exporter
+      prometheus:
+        endpoint: 0.0.0.0:8889
+        namespace: obi
+        const_labels:
+          cluster: k3d-obi-demo
+
+      # File exporter for local storage/debugging
+      file:
+        path: /var/log/otel/metrics.json
+        rotation:
+          max_megabytes: 100
+          max_days: 7
+          max_backups: 3
+
+    service:
+      pipelines:
+        metrics:
+          receivers: [otlp]
+          processors: [memory_limiter, resource, attributes, batch]
+          exporters: [logging, prometheus, file]
+
+        traces:
+          receivers: [otlp]
+          processors: [memory_limiter, resource, attributes, batch]
+          exporters: [logging, file]
+
+      telemetry:
+        logs:
+          level: info
+        metrics:
+          level: detailed
+          address: 0.0.0.0:8888
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: otel-collector
+  namespace: observability
+  labels:
+    app: otel-collector
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: otel-collector
+  template:
+    metadata:
+      labels:
+        app: otel-collector
+    spec:
+      containers:
+      - name: otel-collector
+        image: otel/opentelemetry-collector-contrib:0.91.0
+        args:
+          - "--config=/conf/otel-collector-config.yaml"
+        ports:
+        - containerPort: 4317  # OTLP gRPC
+          name: otlp-grpc
+          protocol: TCP
+        - containerPort: 4318  # OTLP HTTP
+          name: otlp-http
+          protocol: TCP
+        - containerPort: 8888  # Prometheus metrics
+          name: prometheus
+          protocol: TCP
+        - containerPort: 8889  # Prometheus exporter
+          name: prom-export
+          protocol: TCP
+        volumeMounts:
+        - name: config
+          mountPath: /conf
+        - name: logs
+          mountPath: /var/log/otel
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 8888
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 8888
+          initialDelaySeconds: 10
+          periodSeconds: 5
+      volumes:
+      - name: config
+        configMap:
+          name: otel-collector-config
+      - name: logs
+        emptyDir: {}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: otel-collector
+  namespace: observability
+  labels:
+    app: otel-collector
+spec:
+  type: ClusterIP
+  ports:
+  - port: 4317
+    targetPort: 4317
+    protocol: TCP
+    name: otlp-grpc
+  - port: 4318
+    targetPort: 4318
+    protocol: TCP
+    name: otlp-http
+  - port: 8888
+    targetPort: 8888
+    protocol: TCP
+    name: metrics
+  - port: 8889
+    targetPort: 8889
+    protocol: TCP
+    name: prometheus
+  selector:
+    app: otel-collector
+
+---
+# Optional: ServiceMonitor for Prometheus Operator
+# Uncomment if using Prometheus Operator
+# apiVersion: monitoring.coreos.com/v1
+# kind: ServiceMonitor
+# metadata:
+#   name: otel-collector
+#   namespace: observability
+# spec:
+#   selector:
+#     matchLabels:
+#       app: otel-collector
+#   endpoints:
+#   - port: prometheus
+#     interval: 30s
