@@ -1,5 +1,43 @@
 # Changelog
 
+All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
+
+## 1.0.0 (2025-11-20)
+
+* fix(ci): disable husky hooks during semantic-release ([c7910bb](https://github.com/raibid-labs/obi-mcp/commit/c7910bb))
+* fix(ci): exclude docker and kubernetes tests from release workflow ([08f026c](https://github.com/raibid-labs/obi-mcp/commit/08f026c))
+* fix(ci): exclude e2e tests from release workflow ([a68f7a6](https://github.com/raibid-labs/obi-mcp/commit/a68f7a6))
+* fix(ci): include package-lock.json for dependency caching ([3793825](https://github.com/raibid-labs/obi-mcp/commit/3793825))
+* fix(ci): set HUSKY=0 at job level for release workflow ([63f1144](https://github.com/raibid-labs/obi-mcp/commit/63f1144))
+* fix(ci): skip husky prepare script in CI environment ([15a1a33](https://github.com/raibid-labs/obi-mcp/commit/15a1a33))
+* fix(ci): update Node.js version to 22.x for semantic-release ([2618095](https://github.com/raibid-labs/obi-mcp/commit/2618095))
+* fix(config): update demo command to skip E2E tests with known issues ([94e35d2](https://github.com/raibid-labs/obi-mcp/commit/94e35d2))
+* fix(docs): use correct OBI image and enable metric features in examples ([5638851](https://github.com/raibid-labs/obi-mcp/commit/5638851))
+* fix(tests): configure toolsets via environment variables for tests ([b92fdc0](https://github.com/raibid-labs/obi-mcp/commit/b92fdc0))
+* fix(tools): remove unused error variable in helm-client ([e6c9b42](https://github.com/raibid-labs/obi-mcp/commit/e6c9b42))
+* chore(ci): configure husky git hooks ([ae63d6b](https://github.com/raibid-labs/obi-mcp/commit/ae63d6b))
+* chore(ci): setup husky git hooks with commitlint and pre-commit validation ([e541325](https://github.com/raibid-labs/obi-mcp/commit/e541325))
+* chore(config): add justfile with 50+ development commands ([e112b07](https://github.com/raibid-labs/obi-mcp/commit/e112b07))
+* chore(config): cleanup test files and ignore Claude config ([e679780](https://github.com/raibid-labs/obi-mcp/commit/e679780))
+* chore(release): enable npm publishing and add release configuration ([5566522](https://github.com/raibid-labs/obi-mcp/commit/5566522))
+* feat(docs): add optional automation tooling for k3d (#34) ([c6ec651](https://github.com/raibid-labs/obi-mcp/commit/c6ec651)), closes [#34](https://github.com/raibid-labs/obi-mcp/issues/34)
+* feat(docs): add production-ready k3d manifest configurations (#32) ([c1988ce](https://github.com/raibid-labs/obi-mcp/commit/c1988ce)), closes [#32](https://github.com/raibid-labs/obi-mcp/issues/32)
+* feat(resources): add 3 MCP resources for real-time OBI data access ([d251835](https://github.com/raibid-labs/obi-mcp/commit/d251835))
+* feat(tools): add 5 new MCP tools for OBI lifecycle management ([7f6642f](https://github.com/raibid-labs/obi-mcp/commit/7f6642f))
+* feat(tools): add Docker API client with dockerode (#29) ([9211305](https://github.com/raibid-labs/obi-mcp/commit/9211305)), closes [#29](https://github.com/raibid-labs/obi-mcp/issues/29)
+* docs(docs): add comprehensive documentation suite ([510d42b](https://github.com/raibid-labs/obi-mcp/commit/510d42b))
+* docs(docs): add comprehensive k3d reference documentation (#33) ([9e8c1dc](https://github.com/raibid-labs/obi-mcp/commit/9e8c1dc)), closes [#33](https://github.com/raibid-labs/obi-mcp/issues/33)
+* Add complete OBI MCP Server project structure ([1f26800](https://github.com/raibid-labs/obi-mcp/commit/1f26800))
+* Initial commit ([535ee0b](https://github.com/raibid-labs/obi-mcp/commit/535ee0b))
+* Issue #21: Refactor to toolset-based architecture (#27) ([afbb500](https://github.com/raibid-labs/obi-mcp/commit/afbb500)), closes [#27](https://github.com/raibid-labs/obi-mcp/issues/27)
+* Issue #23: Add Docker toolset (#28) ([faa8f4f](https://github.com/raibid-labs/obi-mcp/commit/faa8f4f)), closes [#28](https://github.com/raibid-labs/obi-mcp/issues/28) [#23](https://github.com/raibid-labs/obi-mcp/issues/23) [#22](https://github.com/raibid-labs/obi-mcp/issues/22)
+* Issue #24: Add Helm chart support for OBI deployment (#30) ([2897621](https://github.com/raibid-labs/obi-mcp/commit/2897621)), closes [#30](https://github.com/raibid-labs/obi-mcp/issues/30)
+* Issue #26: Add Kubernetes deployment examples (#31) ([9d2437b](https://github.com/raibid-labs/obi-mcp/commit/9d2437b)), closes [#31](https://github.com/raibid-labs/obi-mcp/issues/31)
+* ci(release): add semantic versioning and automated release pipeline ([dc3bd0b](https://github.com/raibid-labs/obi-mcp/commit/dc3bd0b))
+* test(tests): add comprehensive test suite with 270 tests ([5d10361](https://github.com/raibid-labs/obi-mcp/commit/5d10361))
+
+# Changelog
+
 All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),

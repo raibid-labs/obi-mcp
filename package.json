@@ -1,6 +1,6 @@
 {
   "name": "obi-mcp-server",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Model Context Protocol (MCP) server for OpenTelemetry eBPF Instrumentation (OBI)",
   "main": "dist/index.js",
   "bin": {
