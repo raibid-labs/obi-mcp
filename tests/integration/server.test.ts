@@ -36,6 +36,9 @@ describe('MCP Server Integration', () => {
   let server: ObiMcpServer;
 
   beforeAll(() => {
+    // Disable Docker and Kubernetes toolsets for integration tests
+    process.env.ENABLE_DOCKER_TOOLSET = 'false';
+    process.env.ENABLE_K8S_TOOLSET = 'false';
     server = new ObiMcpServer();
   });
 

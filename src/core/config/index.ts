@@ -28,11 +28,17 @@ export interface ServerConfig {
  * Get configuration from environment or defaults
  */
 export function getServerConfig(): ServerConfig {
-  // Default: enable local toolset
+  // Default: enable all toolsets
   return {
     toolsets: {
       local: {
         enabled: true,
+      },
+      docker: {
+        enabled: process.env.ENABLE_DOCKER_TOOLSET !== 'false',
+      },
+      kubernetes: {
+        enabled: process.env.ENABLE_K8S_TOOLSET !== 'false',
       },
     },
   };
