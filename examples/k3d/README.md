@@ -239,6 +239,28 @@ k3d is **recommended for local development** because:
 - **Port forwarding**: Simple service exposure
 - **Built-in registry**: Optional local registry support
 
+## Optional: Automation with just
+
+For power users, a `justfile` provides convenient shortcuts:
+
+```bash
+# Install just (if needed)
+cargo install just  # or: brew install just
+
+# View all commands
+just --list
+
+# Common workflows
+just setup              # Create cluster + deploy collector + sample app
+just deploy-obi         # Deploy OBI
+just verify             # Verify deployment
+just status             # Show all component status
+just logs               # View OBI logs
+just clean              # Teardown everything
+```
+
+See [`justfile`](./justfile) for all available commands.
+
 ## Next Steps
 
 After deployment:

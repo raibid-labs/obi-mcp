@@ -1,0 +1,93 @@
+# OBI MCP K3D Reference - Automation Commands
+# Optional convenience layer for power users
+
+# Default recipe - show available commands
+default:
+    @just --list
+
+# ============================================================================
+# Quick Start Commands
+# ============================================================================
+
+# Complete setup (cluster + collector + sample app)
+setup: create-cluster deploy-collector deploy-sample-app
+    @echo "✓ k3d cluster ready!"
+    @echo "Next: Deploy OBI with './deploy-obi.sh' or via Claude"
+
+# Full cleanup
+clean: teardown
+    @echo "✓ Environment cleaned"
+
+# ============================================================================
+# Cluster Management
+# ============================================================================
+
+# Create k3d cluster
+create-cluster:
+    ./setup.sh
+
+# Delete k3d cluster
+delete-cluster:
+    k3d cluster delete obi-demo
+
+# Restart cluster
+restart-cluster:
+    k3d cluster stop obi-demo
+    k3d cluster start obi-demo
+
+# ============================================================================
+# Deployment Commands
+# ============================================================================
+
+# Deploy OpenTelemetry Collector
+deploy-collector:
+    kubectl apply -f manifests/otel-collector.yaml
+    @echo "✓ Collector deployed"
+
+# Deploy sample application
+deploy-sample-app:
+    kubectl apply -f manifests/sample-app.yaml
+    @echo "✓ Sample app deployed"
+
+# Deploy OBI DaemonSet
+deploy-obi:
+    ./deploy-obi.sh
+
+# Deploy all components
+deploy-all: deploy-collector deploy-sample-app deploy-obi
+    @echo "✓ Full stack deployed"
+
+# ============================================================================
+# Monitoring & Status
+# ============================================================================
+
+# Show status of all components
+status:
+    @echo "=== Cluster Status ==="
+    @kubectl get nodes
+    @echo ""
+    @echo "=== OBI Pods ==="
+    @kubectl get pods -n observability
+    @echo ""
+    @echo "=== Sample App ==="
+    @kubectl get pods -n demo-app
+
+# Verify deployment
+verify:
+    ./verify.sh
+
+# Show OBI logs (all nodes)
+logs:
+    kubectl logs -n observability -l app=obi --all-containers --tail=50
+
+# Follow OBI logs
+logs-follow:
+    kubectl logs -n observability -l app=obi --all-containers --tail=50 -f
+
+# ============================================================================
+# Cleanup Commands
+# ============================================================================
+
+# Teardown everything
+teardown:
+    ./teardown.sh
