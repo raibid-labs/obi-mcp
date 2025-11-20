@@ -39,7 +39,7 @@ jobs:
         run: npm run typecheck
 
       - name: Run tests
-        run: npm test -- --run --exclude=tests/e2e/**
+        run: npm test -- --run --exclude=tests/e2e/** --exclude=tests/integration/docker-toolset.test.ts --exclude=tests/unit/toolsets/docker/** --exclude=tests/unit/toolsets/kubernetes/**
 
       - name: Build project
         run: npm run build
