@@ -31,7 +31,7 @@
     "lint:fix": "eslint src --ext .ts --fix",
     "format": "prettier --write \"src/**/*.ts\"",
     "typecheck": "tsc --noEmit",
-    "prepare": "husky",
+    "prepare": "node -e \"if (process.env.CI !== 'true') require('child_process').execSync('npx husky')\"",
     "semantic-release": "semantic-release",
     "semantic-release:dry": "semantic-release --dry-run"
   },
